@@ -8,5 +8,6 @@ module.exports = mongoose.model('Todo', {
     price: Number,
     author: String,
     address: String,
+    photo: String,
     done : Boolean
 });

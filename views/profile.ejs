@@ -27,8 +27,8 @@
 
     <!-- SPELLS -->
     <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script><!-- load jquery -->
+    <script src="js/angular.min.js"></script><!-- load angular -->
     <script src="js/ng-file-upload-shim.min.js"></script>
-    <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.2.4/angular.min.js"></script><!-- load angular -->
     <script src="js/ng-file-upload.min.js"></script>
     <script src="js/controllers/main.js"></script> <!-- load up our controller -->
     <script src="js/services/todos.js"></script> <!-- load our todo service -->
@@ -59,7 +59,7 @@
                 <!-- LOOP OVER THE TODOS IN $scope.todos -->
                 <div class="checkbox" ng-repeat="todo in todos">
                     <label>
-                        <input type="checkbox" ng-click="deleteTodo(todo._id)"> {{ todo.text }} ({{ todo.price }}) - {{ todo.author }} at {{ todo.address }}
+                        <input type="checkbox" ng-click="deleteTodo(todo._id)"> <a href="/uploads/{{todo.photo}}" target="_blank">{{ todo.text }} ({{ todo.price }}) - {{ todo.author }} at {{ todo.address }}</a>
                     </label>
                 </div>
 
@@ -76,11 +76,11 @@
                         <input type="text" class="form-control input-lg text-center" placeholder="I want to buy a puppy that will love me forever" ng-model="formData.text">
                         <input type="text" class="form-control input-lg text-center" placeholder="Your Address" ng-model="formData.address">
                         <input type="number" class="form-control input-lg text-center" placeholder="Price" ng-model="formData.price">
-                        <input type="file" id="todo-file" ng-model="formData.file">
+                        <input ngf-select="" ng-model="picFile" name="file" ngf-accept="'image/*'" required="" type="file">
                     </div>
 
                     <!-- createToDo() WILL CREATE NEW TODOS -->
-                    <button type="submit" class="btn btn-primary btn-lg" ng-click="createTodo()">Add</button><br />
+                    <button type="submit" class="btn btn-primary btn-lg" ng-click="createTodo(picFile)">Add</button><br />
                     <a class="btn btn-danger btn-lg" href="/logout">Logout</a>
                 </form>
             </div>

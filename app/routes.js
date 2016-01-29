@@ -1,5 +1,18 @@
 // app/routes.js
 
+// REQUIRED FOR IMAGE UPLOAD
+var multer = require('multer');
+var fs = require('fs');
+var path = require('path');
+var options = multer.diskStorage({ destination : 'public/uploads/' ,
+  filename: function (req, file, cb) {
+    cb(null, (Math.random().toString(36)+'00000000000000000').slice(2, 10) + Date.now() + path.extname(file.originalname));
+  }
+});
+var upload = multer({ storage: options });
+
+// var upload = multer({ dest: 'uploads/' });
+
 // load the todo model
 var Todo = require('./models/todo');
 
@@ -63,15 +76,15 @@ module.exports = function(app, passport) {
 	});
 
 	// create todo and send back all todos after creation
-	app.post('/api/todos', isApiLoggedIn, function(req, res) {
-		console.log(req.files);
+	app.post('/api/todos', isApiLoggedIn, upload.single('file'), function(req, res) {
 
 	    // create a todo, information comes from AJAX request from Angular
 	    Todo.create({
-	        text : req.body.text,
-	        price: req.body.price,
-	        address: req.body.address,
+	        text : req.body.info.text,
+	        price: req.body.info.price,
+	        address: req.body.info.address,
 	        author: req.session.user.local.display_name,
+	        photo: req.file.filename,
 	        done : false
 	    }, function(err, todo) {
 	        if (err)
