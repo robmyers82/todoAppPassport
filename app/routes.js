@@ -16,7 +16,6 @@ var upload = multer({ storage: options });
 // load the todo model
 var Todo = require('./models/todo');
 
-
 // expose the routes to our app with module.exports
 module.exports = function(app, passport) {
 	
@@ -37,6 +36,30 @@ module.exports = function(app, passport) {
         failureRedirect : '/login', // redirect back to the signup page if there is an error
         failureFlash : true // allow flash messages
     }));
+
+    app.post('/api/login', function(req, res) {
+    	passport.authenticate('local-login', function(err, user, info) {
+
+          //an error was encountered (ie. no database available)
+          if (err) {  
+            return next(err); 
+          }
+
+          //a user wasn't returned; this means that the user isn't available, or the login information is incorrect
+          if (!user) {  
+            return res.json({
+              'loginstatus' : 'failure',
+              'message' : info.message
+            }); 
+          }
+          else {  //success!  return the successful status and the if of the logged in user
+            return res.json({
+              'loginstatus' : 'success',
+              'userid' : user.id
+            })
+          }
+        })(req, res);
+    });
 
     app.get('/signup', function(req, res) {
         // render the page and pass in any flash data if it exists
