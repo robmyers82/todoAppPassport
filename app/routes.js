@@ -23,150 +23,169 @@ module.exports = function(app, passport) {
 	
 	// routes ======================================================================
 
-	// main page
+	// WEB ROUTES
 	app.get('/', function(req, res) {
-        res.render('index.ejs');  // load the index.ejs file
-    });
+      res.render('index.ejs');  // load the index.ejs file
+  });
 
-    app.get('/login', function(req, res) {
-        // render the page and pass in any flash data if it exists
-        res.render('login.ejs', { message: req.flash('loginMessage') }); 
-    });
+  app.get('/login', function(req, res) {
+      // render the page and pass in any flash data if it exists
+      res.render('login.ejs', { message: req.flash('loginMessage') }); 
+  });
 
-    app.post('/login', passport.authenticate('local-login', {
-        successRedirect : '/profile', // redirect to the secure profile section
-        failureRedirect : '/login', // redirect back to the signup page if there is an error
-        failureFlash : true // allow flash messages
-    }));
+  app.post('/login', passport.authenticate('local-login', {
+      successRedirect : '/profile', // redirect to the secure profile section
+      failureRedirect : '/login', // redirect back to the signup page if there is an error
+      failureFlash : true // allow flash messages
+  }));
 
-    app.post('/api/login', function(req, res) {
-    	passport.authenticate('local-login', function(err, user, info) {
+  app.get('/signup', function(req, res) {
+      // render the page and pass in any flash data if it exists
+      res.render('signup.ejs', { message: req.flash('signupMessage') });
+  });
 
-          //an error was encountered (ie. no database available)
-          if (err) {  
-            return next(err); 
-          }
+  app.post('/signup', passport.authenticate('local-signup', {
+      successRedirect : '/profile', // redirect to the secure profile section
+      failureRedirect : '/signup', // redirect back to the signup page if there is an error
+      failureFlash : true // allow flash messages
+  }));
 
-          //a user wasn't returned; this means that the user isn't available, or the login information is incorrect
-          if (!user) {  
-            return res.json({
-              'loginstatus' : 'failure',
-              'message' : info.message
-            }); 
-          }
-          else {  
+  app.get('/profile', isLoggedIn, function(req, res) {
+      res.render('profile.ejs', {
+          user : req.session.user // get the user out of session and pass to template
+      });
+  });
 
-            //success!  create a token and return the successful status and the if of the logged in user
+  app.get('/logout', function(req, res) {
+      req.logout();
+      res.redirect('/');
+  });
 
-            // create a token (random 32 character string)
-            var token = Math.round((Math.pow(36, 32 + 1) - Math.random() * Math.pow(36, 32))).toString(36).slice(1);
+  // NOTE: also used in phone API
+  app.get('/api/todos', function(req, res) {
 
-            // add the token to the database
-            Token.create({
-              user_id: user.id,
-              token: token,
-            }, function(err, tokenRes) {
+      // use mongoose to get all todos in the database
+      Todo.find(function(err, todos) {
+
+          // if there is an error retrieving, send the error. nothing after res.send(err) will execute
+          if (err)
+              res.send(err)
+
+          res.json(todos); // return all todos in JSON format
+      });
+  });
+
+  // create todo and send back all todos after creation
+  app.post('/api/todos', isLoggedIn, upload.single('file'), function(req, res) {
+
+      // create a todo, information comes from AJAX request from Angular
+      Todo.create({
+          text : req.body.info.text,
+          price: req.body.info.price,
+          address: req.body.info.address,
+          author: req.session.user.local.display_name,
+          photo: req.file.filename,
+          done : false
+      }, function(err, todo) {
+          if (err)
+              res.send(err);
+
+          // get and return all the todos after you create another
+          Todo.find(function(err, todos) {
               if (err)
-                  res.send(err);
+                  res.send(err)
+              res.json(todos);
+          });
+      });
 
-              return res.json({
-                'loginstatus' : 'success',
-                'userid' : user.id,
-                'token' : token,
-              });
-            });
-          }
-        })(req, res);
-    });
+  });
 
-    // authenticates a userid/token combination
-    app.post('/api/authlogin', function(req, res) {
+  // delete a todo
+  // NOTE: also used in phone API
+  app.delete('/api/todos/:todo_id', function(req, res) {
+      Todo.remove({
+          _id : req.params.todo_id
+      }, function(err, todo) {
+          if (err)
+              res.send(err);
 
-        if (!req.param('user_id') || !req.param('token')) {
-            
-            // user_id/token combination not complete, return invalid
-            return res.json({ status: 'error'});
+          // get and return all the todos after you create another
+          Todo.find(function(err, todos) {
+              if (err)
+                  res.send(err)
+              res.json(todos);
+          });
+      });
+  });
+
+  // API ROUTES
+
+  app.post('/api/login', function(req, res) {
+  	passport.authenticate('local-login', function(err, user, info) {
+
+        //an error was encountered (ie. no database available)
+        if (err) {  
+          return next(err); 
         }
 
-        // attempt to retrieve the token info
-        Token.find({
-          user_id: req.param('user_id'),
-          token: req.param('token'),
-        }, function(err, tokenRes) {
-          if (err)
-              return res.json(err);
+        //a user wasn't returned; this means that the user isn't available, or the login information is incorrect
+        if (!user) {  
+          return res.json({
+            'loginstatus' : 'failure',
+            'message' : info.message
+          }); 
+        }
+        else {  
 
-          // not found
-          if (!tokenRes) {
-              res.json({ status: 'error'});
-          }
+          //success!  create a token and return the successful status and the if of the logged in user
 
-          // all checks pass, we're good!
-          return res.json({ status: 'success'});
-        });
-    });
+          // create a token (random 32 character string)
+          var token = Math.round((Math.pow(36, 32 + 1) - Math.random() * Math.pow(36, 32))).toString(36).slice(1);
 
-    app.get('/signup', function(req, res) {
-        // render the page and pass in any flash data if it exists
-        res.render('signup.ejs', { message: req.flash('signupMessage') });
-    });
+          // add the token to the database
+          Token.create({
+            user_id: user.id,
+            token: token,
+          }, function(err, tokenRes) {
+            if (err)
+                res.send(err);
 
-    app.post('/signup', passport.authenticate('local-signup', {
-        successRedirect : '/profile', // redirect to the secure profile section
-        failureRedirect : '/signup', // redirect back to the signup page if there is an error
-        failureFlash : true // allow flash messages
-    }));
+            return res.json({
+              'loginstatus' : 'success',
+              'userid' : user.id,
+              'token' : token,
+            });
+          });
+        }
+      })(req, res);
+  });
 
-    app.get('/profile', isLoggedIn, function(req, res) {
-        res.render('profile.ejs', {
-            user : req.session.user // get the user out of session and pass to template
-        });
-    });
+  // authenticates a userid/token combination
+  app.post('/api/authlogin', function(req, res) {
 
-    app.get('/logout', function(req, res) {
-        req.logout();
-        res.redirect('/');
-    });
+      if (!req.param('user_id') || !req.param('token')) {
+          
+          // user_id/token combination not complete, return invalid
+          return res.json({ status: 'error'});
+      }
 
-	// api ---------------------------------------------------------------------
-	// get all todos
-	app.get('/api/todos', function(req, res) {
+      // attempt to retrieve the token info
+      Token.find({
+        user_id: req.param('user_id'),
+        token: req.param('token'),
+      }, function(err, tokenRes) {
+        if (err)
+            return res.json(err);
 
-	    // use mongoose to get all todos in the database
-	    Todo.find(function(err, todos) {
+        // not found
+        if (!tokenRes) {
+            res.json({ status: 'error'});
+        }
 
-	        // if there is an error retrieving, send the error. nothing after res.send(err) will execute
-	        if (err)
-	            res.send(err)
-
-	        res.json(todos); // return all todos in JSON format
-	    });
-	});
-
-	// create todo and send back all todos after creation
-	app.post('/api/todos', isApiLoggedIn, upload.single('file'), function(req, res) {
-
-	    // create a todo, information comes from AJAX request from Angular
-	    Todo.create({
-	        text : req.body.info.text,
-	        price: req.body.info.price,
-	        address: req.body.info.address,
-	        author: req.session.user.local.display_name,
-	        photo: req.file.filename,
-	        done : false
-	    }, function(err, todo) {
-	        if (err)
-	            res.send(err);
-
-	        // get and return all the todos after you create another
-	        Todo.find(function(err, todos) {
-	            if (err)
-	                res.send(err)
-	            res.json(todos);
-	        });
-	    });
-
-	});
+        // all checks pass, we're good!
+        return res.json({ status: 'success'});
+      });
+  });
 
   // create todo and send back all todos after creation
   app.post('/api/phonetodos', isApiLoggedIn, function(req, res) {
@@ -182,6 +201,7 @@ module.exports = function(app, passport) {
               res.send({ status: 'error', message: "You're not real!"});
           }
 
+          console.log(req.body.image);
 
           // create a todo, information comes from AJAX request from Angular
           Todo.create({
@@ -205,28 +225,6 @@ module.exports = function(app, passport) {
       });
 
   });
-
-	// delete a todo
-	app.delete('/api/todos/:todo_id', function(req, res) {
-	    Todo.remove({
-	        _id : req.params.todo_id
-	    }, function(err, todo) {
-	        if (err)
-	            res.send(err);
-
-	        // get and return all the todos after you create another
-	        Todo.find(function(err, todos) {
-	            if (err)
-	                res.send(err)
-	            res.json(todos);
-	        });
-	    });
-	});
-
-	// application -------------------------------------------------------------
-	// app.get('*', function(req, res) {
-	//     res.sendfile('./public/index.html'); // load the single view file (angular will handle the page changes on the front-end)
-	// });
 };
 
 // route middleware to make sure a user is logged in
@@ -240,6 +238,7 @@ function isLoggedIn(req, res, next) {
     res.redirect('/login');
 }
 
+// route middleware for API
 function isApiLoggedIn(req, res, next) {
 
     // if user is authenticated in the session, carry on 
