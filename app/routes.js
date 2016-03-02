@@ -187,11 +187,15 @@ module.exports = function(app, passport) {
       });
   });
 
+  app.post('/api/upload', function(req, res) {
+    console.log(req.file);
+    return res.ok();
+  });
+
   // create todo and send back all todos after creation
-  app.post('/api/phonetodos', isApiLoggedIn, function(req, res) {
+  app.post('/api/phonetodos', upload.single('file'), isApiLoggedIn, function(req, res) {
 
-      // get the user based on the user id
-
+      var todoInfo = req.body.info;
       User.findById(req.body.user_id, function(err, user) {
           if (err)
               res.send({ status: 'error', message: "We're sorry, but there was an error with your request"});
@@ -201,27 +205,58 @@ module.exports = function(app, passport) {
               res.send({ status: 'error', message: "You're not real!"});
           }
 
-          console.log(req.body.image);
 
-          // create a todo, information comes from AJAX request from Angular
-          Todo.create({
-              text : req.body.info.text,
-              price: req.body.info.price,
-              address: req.body.info.address,
-              author: user.local.display_name,
-              photo: '',
-              done : false
-          }, function(err, todo) {
-              if (err)
-                  res.send(err);
+          // save the image (if applicable)
+          if (req.file.filename != "") {
 
-              // get and return all the todos after you create another
-              Todo.find(function(err, todos) {
-                  if (err)
-                      res.send(err)
-                  res.json(todos);
-              });
-          });
+            // there is an image found, save the image data and continue 
+            if (err)
+              console.log(err);
+
+            // create a todo, information comes from AJAX request from Angular
+            Todo.create({
+                text : todoInfo.text,
+                price: todoInfo.price,
+                address: todoInfo.address,
+                author: user.local.display_name,
+                photo: req.file.filename,
+                done : false
+            }, function(err, todo) {
+                if (err)
+                    res.send(err);
+
+                // get and return all the todos after you create another
+                Todo.find(function(err, todos) {
+                    if (err)
+                        res.send(err)
+                    return res.json(todos);
+                });
+            });
+          }
+          else {
+
+            // No image, save with the empty image variable
+
+            // create a todo, information comes from AJAX request from Angular
+            Todo.create({
+                text : req.body.info.text,
+                price: req.body.info.price,
+                address: req.body.info.address,
+                author: user.local.display_name,
+                photo: '',
+                done : false
+            }, function(err, todo) {
+                if (err)
+                    res.send(err);
+
+                // get and return all the todos after you create another
+                Todo.find(function(err, todos) {
+                    if (err)
+                        res.send(err)
+                    return res.json(todos);
+                });
+            });
+          }
       });
 
   });
