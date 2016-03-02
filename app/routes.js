@@ -195,7 +195,17 @@ module.exports = function(app, passport) {
   // create todo and send back all todos after creation
   app.post('/api/phonetodos', upload.single('file'), isApiLoggedIn, function(req, res) {
 
-      var todoInfo = req.body.info;
+      var todoInfo = JSON.parse(req.body.info);
+
+      var todoColumns = {
+        text : todoInfo.text,
+        price: todoInfo.price,
+        address: todoInfo.address,
+        done : false
+      };
+      console.log("Todo Columns pass 1");
+      console.log(todoColumns);
+
       User.findById(req.body.user_id, function(err, user) {
           if (err)
               res.send({ status: 'error', message: "We're sorry, but there was an error with your request"});
@@ -205,23 +215,23 @@ module.exports = function(app, passport) {
               res.send({ status: 'error', message: "You're not real!"});
           }
 
+          todoColumns.author = user.local.display_name;
+          console.log("Todo Columns pass 2");
+          console.log(todoColumns);
 
           // save the image (if applicable)
           if (req.file.filename != "") {
+
+            todoColumns.photo = req.file.filename;
+            console.log("Todo Columns pass 3");
+            console.log(todoColumns);
 
             // there is an image found, save the image data and continue 
             if (err)
               console.log(err);
 
             // create a todo, information comes from AJAX request from Angular
-            Todo.create({
-                text : todoInfo.text,
-                price: todoInfo.price,
-                address: todoInfo.address,
-                author: user.local.display_name,
-                photo: req.file.filename,
-                done : false
-            }, function(err, todo) {
+            Todo.create(todoColumns, function(err, todo) {
                 if (err)
                     res.send(err);
 
@@ -236,16 +246,12 @@ module.exports = function(app, passport) {
           else {
 
             // No image, save with the empty image variable
+            todoColumns.photo = "";
+            console.log("Todo Columns pass 4");
+            console.log(todoColumns);
 
             // create a todo, information comes from AJAX request from Angular
-            Todo.create({
-                text : req.body.info.text,
-                price: req.body.info.price,
-                address: req.body.info.address,
-                author: user.local.display_name,
-                photo: '',
-                done : false
-            }, function(err, todo) {
+            Todo.create(todoColumns, function(err, todo) {
                 if (err)
                     res.send(err);
 
